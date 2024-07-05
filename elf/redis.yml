@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  redis:
+    container_name: redis
+    image: "redis:5"
+    environment:
+      - BIND=0.0.0.0
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    networks:
+      - hph_net
+
+networks:
+  hph_net:
+    external: true
+

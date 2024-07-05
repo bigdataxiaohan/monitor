@@ -1,0 +1,73 @@
+version: '3'
+
+services:
+    elasticsearch:
+        container_name: elasticsearch
+        image: "docker.elastic.co/elasticsearch/elasticsearch:7.11.0"
+        environment:
+            - discovery.type=single-node
+            - indices.query.bool.max_clause_count=8192  # Adjust as needed
+            - search.max_buckets=100000  # Adjust based on your requirements
+            - ES_JAVA_OPTS=-Xms512m -Xmx512m
+        volumes:
+            - /etc/localtime:/etc/localtime
+        deploy:
+            resources:
+                limits:
+                    memory: 512M
+        networks:
+            - hph_net
+
+    logstash:
+        container_name: logstash
+        depends_on:
+            - elasticsearch
+        image: "docker.elastic.co/logstash/logstash:7.11.0"
+        volumes:
+           - ./GeoLite2-City.mmdb:/usr/share/logstash/GeoLite2-City.mmdb
+           - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+        links:
+            - elasticsearch
+        deploy:
+            resources:
+                limits:
+                    memory: 256M
+        networks:
+            - hph_net
+
+    filebeat:
+        container_name: filebeat
+        depends_on:
+            - elasticsearch
+            - logstash
+        image: "docker.elastic.co/beats/filebeat:7.11.0"
+        volumes:
+            - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+            - /var/log/json_access.log:/var/log/json_access.log:ro
+        user: root
+        environment:
+            - strict.perms=false
+        links:
+            - logstash
+        deploy:
+            resources:
+                limits:
+                    memory: 128M
+        networks:
+            - hph_net
+
+    redis:
+        container_name: redis
+        image: "redis:5"
+        environment:
+            - BIND=0.0.0.0
+        deploy:
+            resources:
+                limits:
+                    memory: 128M
+        networks:
+            - hph_net
+
+networks:
+  hph_net:
+    external: true
